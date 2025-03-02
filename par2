@@ -1,0 +1,45 @@
+import requests
+import argparse
+import json
+
+def load_categories(filepath):
+    with open(filepath, 'r', encoding='utf-8') as file:
+        return json.load(file)
+
+def search_products(category_id, min_price, max_price, min_rating):
+    url = "https://api.wallapop.com/api/v3/search"
+    params = {
+        'category_id': category_id,
+        'min_price': min_price,
+        'max_price': max_price,
+        'filters_source': 'quick_filters',
+        'longitude': -0.118092,
+        'latitude': 51.509865
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        products = data.get('search_objects', [])
+        filtered_products = [product for product in products if product.get('user', {}).get('user_rating', {}).get('average_rating', 0) >= min_rating]
+        return filtered_products[:10]
+    else:
+        print("Ошибка при запросе данных")
+        return []
+
+def main():
+    parser = argparse.ArgumentParser(description="Парсер товаров с Wallapop")
+    parser.add_argument('--category', type=int, required=True, help="ID категории товара")
+    parser.add_argument('--min_price', type=int, required=True, help="Минимальная цена")
+    parser.add_argument('--max_price', type=int, required=True, help="Максимальная цена")
+    parser.add_argument('--min_rating', type=float, required=True, help="Минимальный рейтинг продавца")
+    args = parser.parse_args()
+
+    products = search_products(args.category, args.min_price, args.max_price, args.min_rating)
+    if products:
+        for product in products:
+            print(f"Название: {product['title']}, Цена: {product['price']}, Ссылка: {product['web_slug']}")
+    else:
+        print("Товаров, соответствующих критериям, не найдено.")
+
+if __name__ == "__main__":
+    main()
